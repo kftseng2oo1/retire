@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F3F6F2">
+<title>退休時點試算</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-title" content="退休時點">
+<style>
+:root{
+  --paper:#F3F6F2; --ink:#18262E; --muted:#5B6B72; --line:#D6DDD8;
+  --field:#FFFFFF; --teal:#0E7C6B; --teal-soft:#DDEFEA; --amber:#B7791F; --amber-soft:#FBEFD9;
+  --c60:#0E7C6B; --c61:#2E8FA3; --c62:#5A78B8; --c63:#8B63A6; --c64:#B7791F; --c65:#C9503E;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:-apple-system,"PingFang TC","Noto Sans TC","Helvetica Neue",sans-serif;
+  font-size:16px;line-height:1.55;-webkit-text-size-adjust:100%}
+body{padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 40px);max-width:720px;margin:0 auto}
+h1{font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:.01em}
+.sub{color:var(--muted);font-size:14px;margin:0 0 20px}
+h2{font-size:15px;font-weight:600;color:var(--muted);margin:28px 0 10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input[type=number]{width:100%;font:inherit;font-size:17px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);-webkit-appearance:none}
+input[type=number]:focus{outline:2px solid var(--teal);outline-offset:1px;border-color:transparent}
+.unit{font-size:12px;color:var(--muted);margin-left:4px}
+.slider{grid-column:1/-1;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.slider .row{display:flex;justify-content:space-between;align-items:baseline}
+.slider .val{font-size:26px;font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;margin:8px 0 2px;accent-color:var(--teal)}
+.toggle{display:flex;align-items:center;gap:8px;font-size:15px;grid-column:1/-1;padding:4px 0}
+.toggle input{width:20px;height:20px;accent-color:var(--teal)}
+.verdict{margin-top:24px;padding:18px 18px 16px;border-radius:14px;background:var(--teal-soft);border-left:5px solid var(--teal)}
+.verdict .big{font-size:30px;font-weight:700;line-height:1.2;color:var(--teal);font-variant-numeric:tabular-nums}
+.verdict p{margin:8px 0 0;font-size:15px}
+.verdict.amber{background:var(--amber-soft);border-left-color:var(--amber)}.verdict.amber .big{color:var(--amber)}
+canvas{width:100%;height:auto;display:block;background:var(--field);border:1px solid var(--line);border-radius:12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted);margin-top:8px}
+.legend span::before{content:"";display:inline-block;width:14px;height:3px;border-radius:2px;margin:0 5px 3px 0;background:currentColor}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;background:var(--field);border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+th,td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line)}
+th{font-weight:600;color:var(--muted);background:var(--paper)}
+td:first-child,th:first-child{text-align:left;padding-left:12px;font-weight:600}
+tr:last-child td{border-bottom:0}
+td.best{color:var(--teal);font-weight:700}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.note{font-size:13px;color:var(--muted);margin-top:12px}
+.note li{margin-bottom:4px}
+</style>
+</head>
+<body>
+<h1>勞保、勞退請領時點試算</h1>
+<p class="sub">比較60到65歲請領勞保老年年金，年金投入投資後各年齡的累計價值。</p>
+
+<div class="grid">
+  <div><label>60歲時勞保年資<span class="unit">年</span></label><input type="number" id="years" value="40" min="15" max="60" step="1"></div>
+  <div><label>平均月投保薪資<span class="unit">元</span></label><input type="number" id="insured" value="45800" min="0" step="100"></div>
+  <div><label>等待期間自付保費<span class="unit">元/月</span></label><input type="number" id="premium" value="1200" min="0" step="100"></div>
+  <div><label>勞退月領<span class="unit">元/月，60歲起</span></label><input type="number" id="lr" value="17000" min="0" step="1000"></div>
+  <div><label>勞退領到<span class="unit">歲（依平均餘命）</span></label><input type="number" id="lrEnd" value="84" min="60" max="100" step="1"></div>
+  <div><label>目前月薪<span class="unit">元，各方案相同</span></label><input type="number" id="salary" value="70000" min="0" step="1000"></div>
+  <label class="toggle"><input type="checkbox" id="useLr" checked>把勞退月領一起投入計算</label>
+  <div class="slider">
+    <div class="row"><label style="margin:0">年化投資報酬率</label><span class="val" id="rateVal">8.0%</span></div>
+    <input type="range" id="rate" min="0" max="10" step="0.5" value="8">
+  </div>
+</div>
+
+<div class="verdict" id="verdict"></div>
+
+<h2>各請領年齡的累計投資價值</h2>
+<canvas id="chart" width="700" height="400"></canvas>
+<div class="legend" id="legend"></div>
+
+<h2>每月金額</h2>
+<div class="tbl-wrap"><table id="t1"></table></div>
+
+<h2>累計價值（萬元）</h2>
+<div class="tbl-wrap"><table id="t2"></table></div>
+
+<ul class="note">
+  <li>年金公式：平均月投保薪資 × 年資 × 1.55%；60歲起提前一年減4%、65歲後延後一年加4%（各最多20%）；年資隨等待年數持續累積。</li>
+  <li>「追平60歲」指該方案的累計價值超過60歲請領方案的年齡；「—」表示到100歲仍未追上。</li>
+  <li>報酬率設0%即為不投資的純現金累計。薪資各方案相同，不影響排序，僅列於每月總收入。</li>
+  <li>此為依現行規定的估算，實際金額請以勞保局e化服務系統與勞退專戶查詢為準。</li>
+</ul>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var ids=['years','insured','premium','lr','lrEnd','salary','rate','useLr'];
+  var colors=['--c60','--c61','--c62','--c63','--c64','--c65'].map(function(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()});
+  var CHECK=[65,70,75,80,85];
+
+  function load(){try{var s=JSON.parse(localStorage.getItem('pt-inputs')||'{}');ids.forEach(function(k){if(s[k]!==undefined){if(k==='useLr')$(k).checked=s[k];else $(k).value=s[k]}})}catch(e){}}
+  function save(){try{var s={};ids.forEach(function(k){s[k]=k==='useLr'?$(k).checked:$(k).value});localStorage.setItem('pt-inputs',JSON.stringify(s))}catch(e){}}
+
+  function pension(base,years,age){var k=age-60;return base*(years+k)*0.0155*(1+0.04*(age-65))}
+
+  function simulate(p){
+    var r=Math.pow(1+p.rate/100,1/12)-1, out=[];
+    for(var age=60;age<=65;age++){
+      var k=age-60, pen=pension(p.insured,p.years,age), v=0, series=[];
+      for(var t=0;t<=(100-60)*12;t++){
+        if(t%12===0) series.push(v);
+        if(t===(100-60)*12) break;
+        var c=(t>=k*12?pen:-p.premium);
+        if(p.useLr && t<(p.lrEnd-60)*12) c+=p.lr;
+        v=(v+c)*(1+r);
+      }
+      out.push({age:age,pen:pen,series:series});
+    }
+    return out;
+  }
+
+  function fmt(n){return Math.round(n).toLocaleString('zh-Hant-TW')}
+  function wan(n){return Math.round(n/10000).toLocaleString('zh-Hant-TW')}
+
+  function render(){
+    var p={years:+$('years').value,insured:+$('insured').value,premium:+$('premium').value,lr:+$('lr').value,lrEnd:+$('lrEnd').value,salary:+$('salary').value,rate:+$('rate').value,useLr:$('useLr').checked};
+    $('rateVal').textContent=p.rate.toFixed(1)+'%';
+    save();
+    var res=simulate(p);
+
+    // best at 85 and at 80
+    function bestAt(a){var b=0;res.forEach(function(x,i){if(x.series[a-60]>res[b].series[a-60])b=i});return res[b]}
+    var b85=bestAt(85), b80=bestAt(80);
+    var diff=b85.series[25]-res[0].series[25];
+    var v=$('verdict');
+    if(b85.age===60){
+      v.className='verdict';
+      v.innerHTML='<div class="big">60歲請領最有利</div><p>在'+p.rate.toFixed(1)+'%報酬率下，60歲請領的累計價值到85歲仍領先，比65歲請領多約 <b>'+wan(res[0].series[25]-res[5].series[25])+'萬</b>，其他年齡全程都追不上。</p>';
+    }else{
+      v.className='verdict amber';
+      v.innerHTML='<div class="big">'+b85.age+'歲請領到85歲最多</div><p>85歲時比60歲請領多約 <b>'+wan(diff)+'萬</b>；但80歲前以'+b80.age+'歲請領為佳。若預期餘命較短，仍以60歲請領為宜。</p>';
+    }
+
+    // legend
+    $('legend').innerHTML=res.map(function(x,i){return '<span style="color:'+colors[i]+'">'+x.age+'歲領</span>'}).join('');
+    drawChart(res);
+
+    // table 1
+    var h='<tr><th>請領歲</th><th>年資</th><th>加減成</th><th>勞保月領</th><th>領後月總收入</th></tr>';
+    res.forEach(function(x,i){
+      var tot=p.salary+x.pen+(p.useLr?p.lr:0);
+      h+='<tr><td>'+x.age+'</td><td>'+(p.years+i)+'</td><td>'+Math.round((0.8+0.04*i)*100)+'%</td><td>'+fmt(x.pen)+'</td><td>'+fmt(tot)+'</td></tr>';
+    });
+    $('t1').innerHTML=h;
+
+    // table 2
+    h='<tr><th>請領歲</th>'+CHECK.map(function(a){return '<th>'+a+'歲</th>'}).join('')+'<th>追平60歲</th></tr>';
+    var best={};CHECK.forEach(function(a){best[a]=bestAt(a).age});
+    res.forEach(function(x,i){
+      var be='—';
+      if(i>0){for(var a=61;a<=100;a++){if(x.series[a-60]>res[0].series[a-60]){be=a+'歲';break}}}
+      h+='<tr><td>'+x.age+'</td>'+CHECK.map(function(a){return '<td'+(best[a]===x.age?' class="best"':'')+'>'+wan(x.series[a-60])+'</td>'}).join('')+'<td>'+be+'</td></tr>';
+    });
+    $('t2').innerHTML=h;
+  }
+
+  function drawChart(res){
+    var cv=$('chart'), dpr=window.devicePixelRatio||1, W=700,H=400;
+    cv.width=W*dpr;cv.height=H*dpr;cv.style.width='100%';
+    var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+    var L=64,R=16,T=20,B=36, maxAge=90;
+    var max=0;res.forEach(function(x){for(var a=60;a<=maxAge;a++)max=Math.max(max,x.series[a-60])});
+    var min=0;res.forEach(function(x){for(var a=60;a<=maxAge;a++)min=Math.min(min,x.series[a-60])});
+    if(max<=0)max=1;
+    var step=Math.pow(10,Math.floor(Math.log10(max)));if(max/step<2)step/=5;else if(max/step<5)step/=2;
+    var top=Math.ceil(max/step)*step, bot=Math.floor(min/step)*step;
+    function X(a){return L+(a-60)/(maxAge-60)*(W-L-R)}
+    function Y(v){return T+(top-v)/(top-bot)*(H-T-B)}
+    ctx.font='12px -apple-system,PingFang TC,sans-serif';ctx.fillStyle='#5B6B72';ctx.strokeStyle='#E4E9E5';ctx.lineWidth=1;
+    for(var v=bot;v<=top+1;v+=step){ctx.beginPath();ctx.moveTo(L,Y(v));ctx.lineTo(W-R,Y(v));ctx.stroke();ctx.textAlign='right';ctx.fillText(Math.round(v/10000)+'萬',L-6,Y(v)+4)}
+    ctx.textAlign='center';for(var a=60;a<=maxAge;a+=5){ctx.fillText(a+'歲',X(a),H-B+18)}
+    res.forEach(function(x,i){
+      ctx.strokeStyle=colors[i];ctx.lineWidth=i===0?3:2;ctx.beginPath();
+      for(var a=60;a<=maxAge;a++){var px=X(a),py=Y(x.series[a-60]);if(a===60)ctx.moveTo(px,py);else ctx.lineTo(px,py)}
+      ctx.stroke();
+    });
+    ctx.textAlign='left';ctx.fillStyle='#5B6B72';ctx.fillText('累計價值',L,T-6);
+  }
+
+  ids.forEach(function(k){$(k).addEventListener('input',render);$(k).addEventListener('change',render)});
+  load();render();
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
+</body>
+</html>
